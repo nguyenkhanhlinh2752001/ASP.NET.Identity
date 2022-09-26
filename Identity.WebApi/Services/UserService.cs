@@ -1,5 +1,6 @@
 ﻿using Identity.Shared.ViewModel;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -11,10 +12,12 @@ namespace Identity.WebApi.Services
     {
         private UserManager<IdentityUser> _userManager;
         private IConfiguration _configuration;
-        public UserService(UserManager<IdentityUser> userManager, IConfiguration configuration)
+        private IMailService _mailService;
+        public UserService(UserManager<IdentityUser> userManager, IConfiguration configuration, IMailService mailService)
         {
             _userManager = userManager;
             _configuration = configuration;
+            _mailService=mailService;
         }
 
         
@@ -43,6 +46,14 @@ namespace Identity.WebApi.Services
 
             if (result.Succeeded)
             {
+                var confirmEmailToken = await _userManager.GenerateEmailConfirmationTokenAsync(identityUser);
+                var encodeEmailToken=Encoding.UTF8.GetBytes(confirmEmailToken);
+                var validEmailToken=WebEncoders.Base64UrlEncode(encodeEmailToken);
+
+                string url = $"{_configuration["AppUrl"]}/api/auth/confirmemail?userid={identityUser.Id}&token={validEmailToken}";
+                await _mailService.SendEmailAsync(identityUser.Email, "Confirm your email",
+                    "<h1>Welcome to Auth demo<h1>" + $"<p>please comfirm your email by <a href='{url}'>Click here</a></p>");
+
                 return new UserManagerResponseVM
                 {
                     Message = "User created successfully",
@@ -102,6 +113,42 @@ namespace Identity.WebApi.Services
                 IsSuccess = true,
                 ExpireDate = token.ValidTo
             };
+
+        }
+
+        public async Task<UserManagerResponseVM> ConfirmEmailAsync(string userId, string token)
+        {
+
+            var user=await _userManager.FindByIdAsync(userId);
+            if (user == null)
+            {
+                return new UserManagerResponseVM
+                {
+                    Message = "User not found",
+                    IsSuccess = false
+                };
+            }
+
+            var decodedToken = WebEncoders.Base64UrlDecode(token);
+            string normalToken=Encoding.UTF8.GetString(decodedToken);
+
+            var rs = await _userManager.ConfirmEmailAsync(user, normalToken);
+
+            if (rs.Succeeded)
+            {
+                return new UserManagerResponseVM
+                {
+                    Message = "Email confirmed successfully",
+                    IsSuccess = true,
+                };
+            }
+            return new UserManagerResponseVM
+            {
+                Message = "Email confirmed failed",
+                IsSuccess = false,
+                Errors = rs.Errors.Select(e => e.Description)
+            };
+
 
         }
     }

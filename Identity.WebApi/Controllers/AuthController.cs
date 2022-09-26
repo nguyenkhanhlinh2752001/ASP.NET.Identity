@@ -1,7 +1,5 @@
 ﻿using Identity.Shared.ViewModel;
 using Identity.WebApi.Services;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Identity.WebApi.Controllers
@@ -12,13 +10,15 @@ namespace Identity.WebApi.Controllers
     {
         private IUserService _userService;
         private IMailService _mailService;
-        public AuthController(IUserService userService, IMailService mailService)
+        private IConfiguration _configuration;
+        public AuthController(IUserService userService, IMailService mailService, IConfiguration configuration)
         {
             _userService = userService;
             _mailService = mailService;
+            _configuration = configuration;
         }
 
-        [HttpPost("register")]
+        [HttpPost("Register")]
         //api/auth/register
         public async Task<IActionResult> RegisterAsync(RegisterVM model)
         {
@@ -33,7 +33,7 @@ namespace Identity.WebApi.Controllers
             return BadRequest(ModelState);
         }
 
-        [HttpPost("login")]
+        [HttpPost("Login")]
         //api/auth/login
         public async Task<IActionResult> LoginAsync(LoginVM model)
         {
@@ -51,6 +51,19 @@ namespace Identity.WebApi.Controllers
             return BadRequest(ModelState);
         }
 
+        [HttpGet("ComfirmEmail")]
+        //api/auth/comfirmemail?userId&token
+        public async Task<IActionResult> ConfirmEmail(string userId, string token)
+        {
+            if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(token))
+                return NotFound();
+            var rs= await _userService.ConfirmEmailAsync(userId, token);
+            if (rs.IsSuccess)
+            {
+                return Redirect($"{_configuration["AppUrl"]}/ConfirmEmail.html");
+            }
+            return BadRequest(rs);
+        }
 
     }
 }
