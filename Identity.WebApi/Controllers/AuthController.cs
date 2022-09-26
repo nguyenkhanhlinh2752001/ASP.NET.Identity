@@ -11,9 +11,11 @@ namespace Identity.WebApi.Controllers
     public class AuthController : ControllerBase
     {
         private IUserService _userService;
-        public AuthController(IUserService userService)
+        private IMailService _mailService;
+        public AuthController(IUserService userService, IMailService mailService)
         {
             _userService = userService;
+            _mailService = mailService;
         }
 
         [HttpPost("register")]
@@ -40,7 +42,10 @@ namespace Identity.WebApi.Controllers
                 var rs = await _userService.LoginUserAsycn(model);
 
                 if (rs.IsSuccess)
+                {
+                    await _mailService.SendEmailAsync(model.Email, "New login","<h1>hey, new login to to your account noticed</h1>"+ DateTime.Now);
                     return Ok(rs);
+                }
                 return BadRequest(rs);
             }
             return BadRequest(ModelState);

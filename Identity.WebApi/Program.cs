@@ -48,6 +48,7 @@ builder.Services.AddAuthentication(auth =>
 });
 
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddTransient<IMailService, MailService>();
 
 
 
