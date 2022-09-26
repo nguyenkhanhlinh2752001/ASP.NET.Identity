@@ -39,8 +39,8 @@ builder.Services.AddAuthentication(auth =>
     {
         ValidateIssuer = true,
         ValidateAudience = true,
-        ValidIssuer = "http://ahmadmozaffar.net",
-        ValidAudience = "http://ahmadmozaffar.net",
+        ValidIssuer = builder.Configuration["AuthSettings:Issuer"],
+        ValidAudience = builder.Configuration["AuthSettings:Audience"],
         RequireExpirationTime = true,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("This is key that we will use in the encryption")),
         ValidateIssuerSigningKey = true
@@ -61,6 +61,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseAuthentication();
 
 app.UseAuthorization();
 
