@@ -151,5 +151,61 @@ namespace Identity.WebApi.Services
 
 
         }
+
+        public async Task<UserManagerResponseVM> ForgetPasswordAsync(string email)
+        {
+            var user = await _userManager.FindByEmailAsync(email);
+            if (user == null)
+                return new UserManagerResponseVM
+                {
+                    Message = "No user associated with this email",
+                    IsSuccess = false,
+                };
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var encodedToken = Encoding.UTF8.GetBytes(token);
+            var validToken=WebEncoders.Base64UrlEncode(encodedToken);
+
+            string url = $"{_configuration["AppUrl"]}/ResetPassword?email={email}&token={validToken}";
+            await _mailService.SendEmailAsync(email, "Reset Password",
+                "<h1>Follow the instructions to reset your password</h1>"+
+                $"<p>To reset your password <a href='{url}'>Click here</a></p>");
+
+            return new UserManagerResponseVM
+            {
+                Message = "Reset password URL has been sent to your email",
+                IsSuccess = true,
+            };
+        }
+
+        public async Task<UserManagerResponseVM> ResetPasswordAsync(ResetPasswordVM model)
+        {
+            var user = await _userManager.FindByEmailAsync(model.Email);
+            if (user == null)
+                return new UserManagerResponseVM
+                {
+                    Message = "No user associated with this email",
+                    IsSuccess = false,
+                };
+            if (model.NewPassword != model.ConfirmPassword)
+                return new UserManagerResponseVM
+                {
+                    Message = "Password doesn't match its confirmation",
+                    IsSuccess = false,
+                };
+            var rs = await _userManager.ResetPasswordAsync(user, model.Token, model.NewPassword);
+            if (rs.Succeeded)
+                return new UserManagerResponseVM
+                {
+                    Message = "Password has been reseted successfully",
+                    IsSuccess = true,
+                };
+
+            return new UserManagerResponseVM
+            {
+                Message = "Reset password faild",
+                IsSuccess = false,
+                Errors = rs.Errors.Select(e => e.Description)
+            };
+        }
     }
 }
